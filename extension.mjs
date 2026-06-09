@@ -530,14 +530,13 @@ const session = await joinSession({
                 properties: {
                     content: {
                         type: "string",
-                        description: "The markdown content to render (required). Include any mermaid code blocks.",
+                        description: "The markdown content to render. Include any mermaid code blocks. The viewer polls for updates so content can also be pushed via update_content or load_file actions after opening.",
                     },
                     title: {
                         type: "string",
                         description: "Optional title for the viewer panel tab",
                     },
                 },
-                required: ["content"],
             },
             actions: [
                 {
