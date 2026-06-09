@@ -11,9 +11,10 @@ function escapeHtml(str) {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function renderViewerHtml(content, title) {
+function renderViewerHtml(content, title, version) {
     const escapedContent = JSON.stringify(content || "");
     const escapedTitle = escapeHtml(title || "Markdown Viewer");
+    const initialVersion = version || 0;
 
     return `<!doctype html>
 <html>
@@ -337,131 +338,156 @@ html { scroll-behavior: smooth; }
 <div class="viewer-container" id="content"></div>
 <script>
 (async () => {
-    const rawContent = ${escapedContent};
+    let currentVersion = ${initialVersion};
+    let currentContent = ${escapedContent};
     const container = document.getElementById("content");
-
-    if (!rawContent || rawContent.trim() === "") {
-        container.innerHTML = \`
-            <div class="empty-state">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                    <path d="M14 2v6h6"/>
-                    <path d="M16 13H8M16 17H8M10 9H8"/>
-                </svg>
-                <h2>Markdown Viewer</h2>
-                <p>Use the <code>update_content</code> action to render markdown content with beautiful mermaid diagram support.</p>
-            </div>\`;
-        return;
-    }
-
-    // Configure marked
-    marked.setOptions({
-        gfm: true,
-        breaks: false,
-    });
-
-    // Custom renderer to intercept mermaid code blocks and wrap tables
-    const renderer = new marked.Renderer();
-    let mermaidCount = 0;
-
-    renderer.code = function({ text, lang }) {
-        if (lang === "mermaid") {
-            const id = "mermaid-" + (mermaidCount++);
-            return '<div class="mermaid-container"><pre class="mermaid" id="' + id + '">' + text + '</pre></div>';
-        }
-        return '<pre><code class="language-' + (lang || "") + '">' + escapeForHtml(text) + '</code></pre>';
-    };
-
-    renderer.table = function(header, body) {
-        // Wrap tables in scrollable container for narrow panels
-        return '<div class="table-wrapper"><table><thead>' + header + '</thead><tbody>' + body + '</tbody></table></div>';
-    };
 
     function escapeForHtml(str) {
         return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    marked.use({ renderer });
+    function getRenderer() {
+        const renderer = new marked.Renderer();
+        let mermaidCount = 0;
 
-    // Render markdown
-    container.innerHTML = marked.parse(rawContent);
-
-    // Initialize mermaid with optimized settings
-    const isDark = document.documentElement.getAttribute("data-color-mode") === "dark" ||
-        window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-    mermaid.initialize({
-        startOnLoad: false,
-        theme: isDark ? "dark" : "default",
-        themeVariables: isDark ? {
-            primaryColor: "#388bfd",
-            primaryTextColor: "#e6edf3",
-            primaryBorderColor: "#388bfd",
-            lineColor: "#8b949e",
-            secondaryColor: "#1f2937",
-            tertiaryColor: "#161b22",
-            background: "#0d1117",
-            mainBkg: "#161b22",
-            nodeBorder: "#30363d",
-            clusterBkg: "#161b22",
-            clusterBorder: "#30363d",
-            titleColor: "#e6edf3",
-            edgeLabelBackground: "#0d1117",
-            nodeTextColor: "#e6edf3",
-        } : {
-            primaryColor: "#0969da",
-            primaryTextColor: "#1f2328",
-            primaryBorderColor: "#0969da",
-            lineColor: "#656d76",
-            secondaryColor: "#ddf4ff",
-            tertiaryColor: "#f6f8fa",
-        },
-        flowchart: {
-            htmlLabels: true,
-            curve: "basis",
-            padding: 10,
-            nodeSpacing: 40,
-            rankSpacing: 45,
-            diagramPadding: 8,
-            useMaxWidth: true,
-            wrappingWidth: 150,
-        },
-        sequence: {
-            diagramMarginX: 12,
-            diagramMarginY: 12,
-            actorMargin: 60,
-            width: 150,
-            height: 45,
-            boxMargin: 8,
-            boxTextMargin: 6,
-            noteMargin: 8,
-            messageMargin: 35,
-            useMaxWidth: true,
-        },
-        gantt: {
-            titleTopMargin: 20,
-            barHeight: 20,
-            barGap: 5,
-            topPadding: 40,
-            leftPadding: 80,
-            useMaxWidth: true,
-        },
-        pie: { useMaxWidth: true },
-        er: { useMaxWidth: true },
-        gitGraph: { useMaxWidth: true },
-    });
-
-    // Render all mermaid diagrams
-    try {
-        await mermaid.run({ querySelector: ".mermaid" });
-    } catch (e) {
-        // If mermaid fails, show the raw diagram code gracefully
-        document.querySelectorAll(".mermaid[data-processed]").forEach(el => {
-            if (!el.querySelector("svg")) {
-                el.innerHTML = "<pre><code>" + escapeForHtml(el.textContent) + "</code></pre>";
+        renderer.code = function({ text, lang }) {
+            if (lang === "mermaid") {
+                const id = "mermaid-" + (mermaidCount++);
+                return '<div class="mermaid-container"><pre class="mermaid" id="' + id + '">' + text + '</pre></div>';
             }
-        });
+            return '<pre><code class="language-' + (lang || "") + '">' + escapeForHtml(text) + '</code></pre>';
+        };
+
+        renderer.table = function(header, body) {
+            return '<div class="table-wrapper"><table><thead>' + header + '</thead><tbody>' + body + '</tbody></table></div>';
+        };
+
+        return renderer;
     }
+
+    function getMermaidConfig() {
+        const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        return {
+            startOnLoad: false,
+            theme: isDark ? "dark" : "default",
+            themeVariables: isDark ? {
+                primaryColor: "#388bfd",
+                primaryTextColor: "#e6edf3",
+                primaryBorderColor: "#388bfd",
+                lineColor: "#8b949e",
+                secondaryColor: "#1f2937",
+                tertiaryColor: "#161b22",
+                background: "#0d1117",
+                mainBkg: "#161b22",
+                nodeBorder: "#30363d",
+                clusterBkg: "#161b22",
+                clusterBorder: "#30363d",
+                titleColor: "#e6edf3",
+                edgeLabelBackground: "#0d1117",
+                nodeTextColor: "#e6edf3",
+            } : {
+                primaryColor: "#0969da",
+                primaryTextColor: "#1f2328",
+                primaryBorderColor: "#0969da",
+                lineColor: "#656d76",
+                secondaryColor: "#ddf4ff",
+                tertiaryColor: "#f6f8fa",
+            },
+            flowchart: {
+                htmlLabels: true,
+                curve: "basis",
+                padding: 10,
+                nodeSpacing: 40,
+                rankSpacing: 45,
+                diagramPadding: 8,
+                useMaxWidth: true,
+                wrappingWidth: 150,
+            },
+            sequence: {
+                diagramMarginX: 12,
+                diagramMarginY: 12,
+                actorMargin: 60,
+                width: 150,
+                height: 45,
+                boxMargin: 8,
+                boxTextMargin: 6,
+                noteMargin: 8,
+                messageMargin: 35,
+                useMaxWidth: true,
+            },
+            gantt: {
+                titleTopMargin: 20,
+                barHeight: 20,
+                barGap: 5,
+                topPadding: 40,
+                leftPadding: 80,
+                useMaxWidth: true,
+            },
+            pie: { useMaxWidth: true },
+            er: { useMaxWidth: true },
+            gitGraph: { useMaxWidth: true },
+        };
+    }
+
+    async function renderContent(content) {
+        if (!content || content.trim() === "") {
+            container.innerHTML = \`
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                        <path d="M14 2v6h6"/>
+                        <path d="M16 13H8M16 17H8M10 9H8"/>
+                    </svg>
+                    <h2>Markdown Viewer</h2>
+                    <p>Loading content\u2026</p>
+                </div>\`;
+            return;
+        }
+
+        marked.setOptions({ gfm: true, breaks: false });
+        marked.use({ renderer: getRenderer() });
+
+        container.innerHTML = marked.parse(content);
+
+        mermaid.initialize(getMermaidConfig());
+        try {
+            await mermaid.run({ querySelector: ".mermaid" });
+        } catch (e) {
+            document.querySelectorAll(".mermaid[data-processed]").forEach(el => {
+                if (!el.querySelector("svg")) {
+                    el.innerHTML = "<pre><code>" + escapeForHtml(el.textContent) + "</code></pre>";
+                }
+            });
+        }
+    }
+
+    // Initial render
+    await renderContent(currentContent);
+
+    // Poll for content updates (handles update_content/load_file actions)
+    async function pollForUpdates() {
+        try {
+            const res = await fetch("/content");
+            if (res.ok) {
+                const data = await res.json();
+                if (data.version > currentVersion) {
+                    currentVersion = data.version;
+                    currentContent = data.content;
+                    if (data.title) {
+                        document.title = data.title;
+                    }
+                    await renderContent(currentContent);
+                }
+            }
+        } catch (e) {
+            // Server may be shutting down, stop polling
+            return;
+        }
+        setTimeout(pollForUpdates, 800);
+    }
+
+    // Start polling after a brief delay
+    setTimeout(pollForUpdates, 600);
 })();
 </script>
 </body>
@@ -469,15 +495,16 @@ html { scroll-behavior: smooth; }
 }
 
 async function startServer(instanceId) {
-    const entry = { server: null, url: "", content: "", title: "Markdown Viewer" };
+    const entry = { server: null, url: "", content: "", title: "Markdown Viewer", version: 0 };
 
     const server = createServer((req, res) => {
         if (req.method === "GET" && (req.url === "/" || req.url === "")) {
             res.setHeader("Content-Type", "text/html; charset=utf-8");
-            res.end(renderViewerHtml(entry.content, entry.title));
+            res.end(renderViewerHtml(entry.content, entry.title, entry.version));
         } else if (req.method === "GET" && req.url === "/content") {
             res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify({ content: entry.content, title: entry.title }));
+            res.setHeader("Cache-Control", "no-cache");
+            res.end(JSON.stringify({ content: entry.content, title: entry.title, version: entry.version }));
         } else {
             res.statusCode = 404;
             res.end("Not found");
@@ -497,19 +524,20 @@ const session = await joinSession({
         createCanvas({
             id: "markdown-viewer",
             displayName: "Markdown Viewer",
-            description: "A beautiful read-only markdown viewer with mermaid diagram rendering. Pass markdown content to render it with optimized typography and diagram layout.",
+            description: "A beautiful read-only markdown viewer with mermaid diagram rendering. Always pass the full markdown content when opening — the viewer renders it immediately with optimized typography and diagram layout. Content updates via actions are auto-refreshed.",
             inputSchema: {
                 type: "object",
                 properties: {
                     content: {
                         type: "string",
-                        description: "The markdown content to render, including any mermaid code blocks",
+                        description: "The markdown content to render (required). Include any mermaid code blocks.",
                     },
                     title: {
                         type: "string",
-                        description: "Optional title for the viewer panel",
+                        description: "Optional title for the viewer panel tab",
                     },
                 },
+                required: ["content"],
             },
             actions: [
                 {
@@ -540,7 +568,8 @@ const session = await joinSession({
                         if (ctx.input?.title) {
                             entry.title = ctx.input.title;
                         }
-                        return { success: true, message: "Content updated. Reload the viewer to see changes." };
+                        entry.version++;
+                        return { success: true, message: "Content updated — viewer will refresh automatically." };
                     },
                 },
                 {
@@ -566,7 +595,8 @@ const session = await joinSession({
                             entry.content = fileContent;
                             const fileName = ctx.input.path.split("/").pop();
                             entry.title = fileName || "Markdown Viewer";
-                            return { success: true, message: `Loaded ${fileName}. Reload the viewer to see changes.` };
+                            entry.version++;
+                            return { success: true, message: `Loaded ${fileName} — viewer will refresh automatically.` };
                         } catch (err) {
                             return { error: `Failed to read file: ${err.message}` };
                         }
@@ -582,6 +612,7 @@ const session = await joinSession({
                 // Set initial content from input if provided
                 if (ctx.input?.content) {
                     entry.content = ctx.input.content;
+                    entry.version++;
                 }
                 if (ctx.input?.title) {
                     entry.title = ctx.input.title;
