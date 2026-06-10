@@ -206,31 +206,28 @@ input[type="checkbox"] {
     pointer-events: none;
 }
 
-/* Mermaid diagrams - optimized for side panel */
+/* Mermaid diagrams - fill available width */
 .mermaid-container {
     margin: 1.25em 0;
-    padding: 16px 12px;
-    background: rgba(255, 255, 255, 0.02);
+    padding: 12px 4px;
     border: 1px solid var(--border-color-default, #30363d);
-    border-radius: 10px;
+    border-radius: 8px;
     overflow-x: auto;
     overflow-y: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
     min-height: 80px;
     -webkit-overflow-scrolling: touch;
+    position: relative;
 }
 
 .mermaid-container svg {
+    width: 100%;
     max-width: 100%;
     height: auto;
     display: block;
 }
 
-/* Allow wide diagrams to scroll instead of squish */
 .mermaid-container .mermaid {
-    min-width: min-content;
+    width: 100%;
 }
 
 /* Mermaid node text readability */
@@ -239,22 +236,6 @@ input[type="checkbox"] {
 .mermaid-container .label {
     font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif) !important;
     font-size: 12px !important;
-}
-
-/* Zoom hint for mermaid diagrams */
-.mermaid-container:hover::after {
-    content: "";
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(110, 118, 129, 0.3);
-    pointer-events: none;
-}
-.mermaid-container {
-    position: relative;
 }
 
 /* Loading state */
@@ -396,28 +377,28 @@ html { scroll-behavior: smooth; }
             flowchart: {
                 htmlLabels: true,
                 curve: "basis",
-                padding: 10,
-                nodeSpacing: 40,
-                rankSpacing: 45,
+                padding: 12,
+                nodeSpacing: 50,
+                rankSpacing: 55,
                 diagramPadding: 8,
                 useMaxWidth: true,
-                wrappingWidth: 150,
+                wrappingWidth: 200,
             },
             sequence: {
-                diagramMarginX: 12,
-                diagramMarginY: 12,
-                actorMargin: 60,
-                width: 150,
-                height: 45,
-                boxMargin: 8,
-                boxTextMargin: 6,
-                noteMargin: 8,
-                messageMargin: 35,
+                diagramMarginX: 16,
+                diagramMarginY: 16,
+                actorMargin: 70,
+                width: 160,
+                height: 50,
+                boxMargin: 10,
+                boxTextMargin: 8,
+                noteMargin: 10,
+                messageMargin: 40,
                 useMaxWidth: true,
             },
             gantt: {
                 titleTopMargin: 20,
-                barHeight: 20,
+                barHeight: 22,
                 barGap: 5,
                 topPadding: 40,
                 leftPadding: 80,
