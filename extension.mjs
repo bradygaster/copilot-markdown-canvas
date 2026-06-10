@@ -339,8 +339,23 @@ html { scroll-behavior: smooth; }
             return '<pre><code class="language-' + (lang || "") + '">' + escapeForHtml(text) + '</code></pre>';
         };
 
-        renderer.table = function(header, body) {
-            return '<div class="table-wrapper"><table><thead>' + header + '</thead><tbody>' + body + '</tbody></table></div>';
+        renderer.table = function(token) {
+            // marked v15 passes a token object with header[] and rows[]
+            let headerHtml = '';
+            for (const cell of token.header) {
+                const align = cell.align ? ' style="text-align:' + cell.align + '"' : '';
+                headerHtml += '<th' + align + '>' + this.parser.parseInline(cell.tokens) + '</th>';
+            }
+            let bodyHtml = '';
+            for (const row of token.rows) {
+                let rowHtml = '';
+                for (const cell of row) {
+                    const align = cell.align ? ' style="text-align:' + cell.align + '"' : '';
+                    rowHtml += '<td' + align + '>' + this.parser.parseInline(cell.tokens) + '</td>';
+                }
+                bodyHtml += '<tr>' + rowHtml + '</tr>';
+            }
+            return '<div class="table-wrapper"><table><thead><tr>' + headerHtml + '</tr></thead><tbody>' + bodyHtml + '</tbody></table></div>';
         };
 
         return renderer;
